@@ -7,26 +7,34 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.protocol.game.ClientboundSetHeldSlotPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
+import net.minecraft.world.entity.PositionMoveRotation;
+import net.minecraft.world.entity.Relative;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.ChatFormatting;
 import net.fabricmc.api.DedicatedServerModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Main entry point for the TimeStop Fabric mod.
  *
- * <p>This mod provides a server-side stun system that freezes players in place
- * by silently dropping their movement packets. Unlike the previous approach
- * that registered a custom {@link net.minecraft.world.effect.MobEffect}, this
- * version uses a lightweight in-memory map ({@link StunManager}) to track
- * stunned players. This avoids Fabric's registry sync sending unknown entries
- * to vanilla clients, which caused "Received a registry entry that is unknown
- * to this client" disconnects.
+ * <p>This mod provides a server-side stun system that fully freezes players:
+ * <ul>
+ *   <li>Movement packets are cancelled server-side</li>
+ *   <li>Every tick, stunned players are force-teleported back to their
+ *       capture position so their client snaps back immediately</li>
+ *   <li>Interaction packets (block place/break, item use, entity interact)
+ *       are cancelled server-side, and inventory is synced back to prevent
+ *       ghost items on the client</li>
+ * </ul>
  *
  * <p>Usage:
  * <ul>
@@ -48,11 +56,53 @@ public class TimeStopMod implements DedicatedServerModInitializer {
 
     @Override
     public void onInitializeServer() {
+        // Register /stun and /unstun commands
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             registerCommands(dispatcher);
         });
 
-        LOGGER.info("TimeStop mod initialized — using StunManager (no registry entries, vanilla-client compatible)");
+        // Every tick: force-sync stunned players back to their capture position
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long currentTick = server.getTickCount();
+
+            for (UUID uuid : StunManager.getStunnedPlayers()) {
+                ServerPlayer player = server.getPlayerList().getPlayer(uuid);
+                if (player == null) {
+                    // Player disconnected while stunned — clean up
+                    StunManager.unstun(uuid);
+                    continue;
+                }
+
+                StunManager.StunData data = StunManager.getStunData(uuid);
+
+                // Check if stun has expired
+                if (data != null && currentTick > data.expiryTick) {
+                    StunManager.unstun(uuid);
+                    LOGGER.info("Stun expired for {}", player.getName().getString());
+                    continue;
+                }
+
+                // Force-teleport the player back to their capture position.
+                // This sends a ClientboundPlayerPositionPacket to the client,
+                // which snaps the client's local position back immediately.
+                if (data != null) {
+                    PositionMoveRotation absolute = new PositionMoveRotation(
+                            new Vec3(data.x, data.y, data.z),
+                            Vec3.ZERO,
+                            data.yaw,
+                            data.pitch
+                    );
+                    player.connection.teleport(absolute, Set.of());
+                }
+
+                // Sync the player's inventory to undo any client-side
+                // ghost changes (items that appear consumed/placed but
+                // were actually blocked on the server).
+                player.containerMenu.broadcastChanges();
+            }
+        });
+
+        LOGGER.info("TimeStop mod initialized — using StunManager with force-position-sync (vanilla-client compatible)");
     }
 
     /**
@@ -95,7 +145,7 @@ public class TimeStopMod implements DedicatedServerModInitializer {
 
     private static int stunPlayer(CommandSourceStack source, ServerPlayer target, int durationSeconds) {
         long currentTick = source.getServer().getTickCount();
-        StunManager.stunForSeconds(target.getUUID(), currentTick, durationSeconds);
+        StunManager.stunForSeconds(target.getUUID(), target, currentTick, durationSeconds);
 
         String durationText = durationSeconds <= 0 ? "indefinitely" : durationSeconds + "s";
         source.sendSuccess(() -> Component.literal("[TimeStop] ")
