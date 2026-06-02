@@ -6,6 +6,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.Identifier;
+import net.fabricmc.api.DedicatedServerModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +24,7 @@ import org.slf4j.LoggerFactory;
  * effect give @a[tag=!immune] timestop:stun infinite 0 true
  * </pre>
  */
-public class TimeStopMod {
+public class TimeStopMod implements DedicatedServerModInitializer {
 
     /** Mod ID used as the namespace for all registered assets. */
     public static final String MOD_ID = "timestop";
@@ -55,7 +56,8 @@ public class TimeStopMod {
      * <p>Registers the {@code timestop:stun} status effect in the vanilla
      * registry and caches its Holder for efficient mixin lookups.
      */
-    public static void onInitialize() {
+    @Override
+    public void onInitializeServer() {
         Registry.register(BuiltInRegistries.MOB_EFFECT, STUN_ID, STUN_EFFECT);
 
         // Cache the Holder reference for the mixin's hot path
