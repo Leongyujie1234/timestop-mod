@@ -3,7 +3,7 @@
   "id": "timestop",
   "version": "${version}",
   "name": "TimeStop",
-  "description": "Server-side Fabric mod: invisible stun effect + movement packet blocking + Fabric API bypass for vanilla clients. Designed for use with Scarpet scripts.",
+  "description": "Server-side Fabric mod: stun players to freeze movement via /stun command + Fabric API bypass for vanilla clients. No custom registry entries — fully vanilla-client compatible.",
   "authors": [
     "TimeStop Contributors"
   ],
