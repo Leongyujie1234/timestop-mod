@@ -3,7 +3,7 @@
   "id": "timestop",
   "version": "${version}",
   "name": "TimeStop",
-  "description": "Server-side Fabric mod that registers an invisible stun effect and blocks player movement packets when the effect is active. Designed for use with Scarpet scripts.",
+  "description": "Server-side Fabric mod: invisible stun effect + movement packet blocking + Fabric API bypass for vanilla clients. Designed for use with Scarpet scripts.",
   "authors": [
     "TimeStop Contributors"
   ],
@@ -16,7 +16,8 @@
     ]
   },
   "mixins": [
-    "timestop.mixins.json"
+    "timestop.mixins.json",
+    "timestop-bypass.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.0",

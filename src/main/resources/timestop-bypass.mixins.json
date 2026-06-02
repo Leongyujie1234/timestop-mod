@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.timestop.bypass",
+  "compatibilityLevel": "JAVA_25",
+  "server": [
+    "BypassFabricCheckMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
