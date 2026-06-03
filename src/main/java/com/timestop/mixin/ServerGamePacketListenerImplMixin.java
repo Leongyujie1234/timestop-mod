@@ -11,6 +11,9 @@ import net.minecraft.network.protocol.game.ServerboundSwingPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+import net.minecraft.network.protocol.game.ServerboundMoveVehiclePacket;
+import net.minecraft.network.protocol.game.ServerboundPaddleBoatPacket;
+import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -89,7 +92,7 @@ public abstract class ServerGamePacketListenerImplMixin {
 
     // ── Arm swing animation ─────────────────────────────────────────────
 
-    @Inject(method = "handleSwing", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "handleAnimate", at = @At("HEAD"), cancellable = true)
     private void timestop$blockSwing(ServerboundSwingPacket packet, CallbackInfo ci) {
         if (StunManager.isStunned(this.player.getUUID())) {
             ci.cancel();
@@ -122,6 +125,33 @@ public abstract class ServerGamePacketListenerImplMixin {
 
     @Inject(method = "handlePlayerCommand", at = @At("HEAD"), cancellable = true)
     private void timestop$blockPlayerCommand(ServerboundPlayerCommandPacket packet, CallbackInfo ci) {
+        if (StunManager.isStunned(this.player.getUUID())) {
+            ci.cancel();
+        }
+    }
+
+    // ── Vehicle movement ────────────────────────────────────────────────
+
+    @Inject(method = "handleMoveVehicle", at = @At("HEAD"), cancellable = true)
+    private void timestop$blockMoveVehicle(ServerboundMoveVehiclePacket packet, CallbackInfo ci) {
+        if (StunManager.isStunned(this.player.getUUID())) {
+            ci.cancel();
+        }
+    }
+
+    // ── Boat paddling ───────────────────────────────────────────────────
+
+    @Inject(method = "handlePaddleBoat", at = @At("HEAD"), cancellable = true)
+    private void timestop$blockPaddleBoat(ServerboundPaddleBoatPacket packet, CallbackInfo ci) {
+        if (StunManager.isStunned(this.player.getUUID())) {
+            ci.cancel();
+        }
+    }
+
+    // ── Player input (vehicle steer) ────────────────────────────────────
+
+    @Inject(method = "handlePlayerInput", at = @At("HEAD"), cancellable = true)
+    private void timestop$blockPlayerInput(ServerboundPlayerInputPacket packet, CallbackInfo ci) {
         if (StunManager.isStunned(this.player.getUUID())) {
             ci.cancel();
         }
